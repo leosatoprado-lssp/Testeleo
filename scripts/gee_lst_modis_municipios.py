@@ -54,7 +54,7 @@ ANO_INICIAL = {'terra': 2001, 'aqua': 2003}
 TOLERANCIA_GRAUS = 0.002             # simplificação das geometrias (~200 m)
 MAX_MUN_LOTE = 120                   # nº máximo de municípios por requisição
 MAX_AREA_LOTE_KM2 = 120_000          # área máxima por requisição (Amazônia pesa)
-N_THREADS = 8                        # requisições simultâneas ao Earth Engine
+N_THREADS = 20                       # requisições simultâneas ao Earth Engine
 
 
 # ============================================================================
