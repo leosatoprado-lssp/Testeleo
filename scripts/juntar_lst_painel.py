@@ -37,7 +37,7 @@ assert not lst.duplicated(['geocodigo', 'ano']).any(), 'chave duplicada na LST'
 # Junção à esquerda: anos 1985-2000 ficam sem LST (o MODIS começa em 2000) e
 # o Aqua só tem ano completo a partir de 2003.
 painel = painel.merge(lst, on=['geocodigo', 'ano'], how='left')
-painel.to_csv('dados/painel_municipios_1985_2025.csv', index=False)
+painel.to_csv('dados/painel_municipios_1985_2025.csv', index=False, encoding='utf-8-sig')  # BOM: acentos certos no Excel
 print(f'💾 Painel: {painel.shape[0]} linhas × {painel.shape[1]} colunas')
 
 

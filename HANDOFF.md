@@ -62,49 +62,63 @@ local desmatado.
 - Erros-padrão com correção espacial (Conley ou cluster).
 - Amostra principal: **robusta** (ver seção 5).
 
-## 4. Próximo passo imediato: temperatura de superfície (MODIS) via Earth Engine
+## 4. Temperatura de superfície (MODIS) via Earth Engine: FEITO
 
 Decisão: **MODIS LST como Y principal**; BR-DWGD (já no painel) como complementar.
 Estações do INMET descartadas como fonte principal (poucas séries longas, trocas
-de equipamento, viés urbano). Observação importante: as defasagens são da
-vegetação (1985+), então temperatura de 2001–2024 ainda permite 10–15 anos de
-defasagem.
+de equipamento, viés urbano). As defasagens são da vegetação (1985+), então
+temperatura de 2001–2025 ainda permite 10–15 anos de defasagem.
 
-Situação:
-- O Léo registrou um projeto no Earth Engine para **uso não comercial, faixa
-  Community** (sem conta de faturamento). **Falta pedir o ID do projeto.**
-- Ele criou um ambiente do Claude Code com **rede totalmente liberada**.
-  Primeiro teste a conectividade: `earthengine.googleapis.com`,
-  `oauth2.googleapis.com`, `geoftp.ibge.gov.br`. Há relatos de o modo "Full" não
-  ser aplicado; se bloquear, sugerir ambiente Custom com esses domínios.
-- Autenticação: fluxo em que você gera o link (`earthengine authenticate` ou
-  `ee.Authenticate(auth_mode="notebook")`), ele abre no celular, autoriza e cola o
-  código. Lembrá-lo de revogar em myaccount.google.com ao fim do projeto.
+Acesso ao Earth Engine:
+- Projeto Cloud do Léo, registrado como uso não comercial. O **número do projeto
+  (136238277956) funciona no lugar do ID** em `ee.Initialize(project=...)`.
+- Autenticação pelo fluxo "notebook" (`earthengine authenticate
+  --auth_mode=notebook --quiet`, ele abre o link no celular e cola o código).
+  Ele não concedeu todos os escopos pedidos: ao montar a credencial, retirar a
+  lista `scopes` (senão a renovação falha com `invalid_scope`); ver `conectar()`
+  no script. Credencial fica só no container (`~/.config/earthengine`); numa
+  sessão nova, repetir o fluxo. Lembrá-lo de revogar em myaccount.google.com.
 
-Plano técnico sugerido:
-1. Baixar a malha municipal IBGE 2025:
-   https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2025/Brasil/BR_Municipios_2025.zip
-   (campos esperados: CD_MUN, NM_MUN, SIGLA_UF, AREA_KM2; confira). Simplificar
-   geometrias e enviar ao Earth Engine em lotes (payload limitado).
-2. MODIS **MOD11A2 v061** (Terra, 8 dias, 1 km), LST_Day_1km e LST_Night_1km,
-   escala 0,02 e conversão para °C, filtrando pelo QC (boa qualidade). Anos
-   2001–2024 (checar 2025). Por município e ano: média anual dia e noite, média
-   de julho–setembro (estação seca) e **número de observações válidas** (viés de
-   céu limpo). Considerar também MYD11A2 (Aqua, ~13h30, mais perto da Tmáx).
-3. Imagem multibanda (ano × variável) e `reduceRegions` por lote, trazendo o
-   resultado com getInfo/computeFeatures, sem tarefas de exportação.
-4. Juntar ao painel por geocódigo e ano; conferências de faixa e cobertura.
-5. Limitações a registrar: deriva orbital do Terra nos anos recentes (efeito de
-   ano × UF absorve boa parte), viés de céu limpo, horários fixos de passagem.
+O que foi extraído (`scripts/gee_lst_modis_municipios.py`, ~5 min de execução):
+- MOD11A2 (Terra, 2001–2025) e MYD11A2 (Aqua, 2003–2025), v061, 8 dias, 1 km,
+  malha IBGE 2025 simplificada a 0,002°, média zonal ponderada por fração de
+  pixel, na projeção nativa. Resultado: `dados/lst_modis_municipios_2001_2025.csv`
+  (139.275 linhas), já juntado ao painel por `scripts/juntar_lst_painel.py`.
+- Colunas por satélite (`terra_` / `aqua_`): `lst_dia_c`, `lst_noite_c`,
+  `lst_dia_jas_c`, `lst_noite_jas_c`, `lst_dia_max_c` (maior composto de 8 dias),
+  `n_obs_dia`, `n_obs_noite` (compostos válidos por pixel, de 46),
+  `frac_pix_dia`, e versões `_rig` (QC rigoroso) de média e n_obs.
+- QC principal ("amplo"): qualidade 00 ou 01 com erro ≤ 2 K. Rigoroso: 00, ou
+  01 com erro ≤ 1 K. Motivo: só QC = 00 zera a noite (quase nenhum pixel noturno
+  recebe 00 na coleção 6.1) e o rigoroso deixa 8–18 compostos por ano de dia na
+  região Norte, com seleção sazonal forte.
+
+Achados das conferências (importantes para o modelo):
+1. **Deriva orbital do Terra confirmada**: Terra − Aqua (dia) fica estável em
+   −2,7 °C até 2020 e vai a −3,3 (2022), −3,9 (2024) e −4,4 °C (2025). Proposta:
+   **Aqua como Y principal** (2003–2025, e mais perto da Tmáx), Terra só até 2020
+   em robustez. Efeito de UF × ano absorve a parte comum, mas a deriva pode
+   variar com a cobertura do solo (é justamente o regressor), então não confiar
+   nisso.
+2. **LST noturna é fraca**: mesmo no critério amplo, só 5–13 compostos por ano
+   (N e CO ~5–7). A noite com QC rigoroso é inutilizável (quase toda vazia).
+   Sugerir LST diurna como Y principal e noturna só como complemento. Vale
+   investigar se o filtro de erro noturno (bits 6–7) está sendo severo demais.
+3. Correlação com o BR-DWGD: LST dia × Tmáx do ar 0,78 (Aqua) no geral e 0,62
+   dentro do município; LST noite × Tmín 0,92 e 0,33. Coerente com a literatura
+   (LST e ar respondem diferente).
+4. Viés de céu limpo: o `n_obs_dia` médio vai de 32–35 (Norte) a 43 (Sul);
+   usar como controle ou filtro de cobertura.
 
 Validações futuras (opcionais): marcar municípios com estação do INMET dentro
 do território e repetir o modelo nesse subconjunto; comparar decaimento espacial
-entre MODIS e BR-DWGD.
+entre MODIS e BR-DWGD; média sazonal balanceada (média das médias mensais) para
+reduzir o viés de céu limpo.
 
 ## 5. Estado da base (arquivos em `dados/`)
 
 `painel_municipios_1985_2025.csv`: 5.571 municípios × 41 anos (228.411 linhas),
-39 colunas. Chave: `geocodigo` (IBGE, 7 dígitos) + `ano`.
+63 colunas (39 originais + 24 de MODIS LST, 2001–2025). Chave: `geocodigo` (IBGE, 7 dígitos) + `ano`.
 
 | Grupo | Colunas | Fonte e observações |
 |---|---|---|
@@ -138,6 +152,8 @@ Não incluídos (grandes, baixar se precisar):
 - `montar_painel_municipios.py`: painel 1985–2025.
 - `juntar_clima_painel.py`: junta o clima do BR-DWGD, imputação e degraus.
 - `clima_anual_municipios_colab.ipynb`: extração do BR-DWGD (rodado pelo Léo no Colab).
+- `gee_lst_modis_municipios.py`: extração do MODIS LST no Earth Engine (seção 4).
+- `juntar_lst_painel.py`: junta a LST ao painel e roda as conferências.
 - `gee_altitude_clima_municipios.js`: rascunho antigo para o GEE (altitude e
   TerraClimate); não usado, pode servir de referência.
 
