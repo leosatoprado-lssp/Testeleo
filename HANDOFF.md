@@ -93,6 +93,9 @@ O que foi extraído (`scripts/gee_lst_modis_municipios.py`, ~5 min de execução
   recebe 00 na coleção 6.1) e o rigoroso deixa 8–18 compostos por ano de dia na
   região Norte, com seleção sazonal forte.
 
+**Decisão do Léo:** Y principal = `aqua_lst_dia_c` (Aqua, diurna, QC amplo,
+2003–2025). Terra e LST noturna ficam fora do modelo principal.
+
 Achados das conferências (importantes para o modelo):
 1. **Deriva orbital do Terra confirmada**: Terra − Aqua (dia) fica estável em
    −2,7 °C até 2020 e vai a −3,3 (2022), −3,9 (2024) e −4,4 °C (2025). Proposta:
