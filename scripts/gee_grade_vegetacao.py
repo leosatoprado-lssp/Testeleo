@@ -24,6 +24,7 @@
 # Rodar da raiz do repositório:  python scripts/gee_grade_vegetacao.py
 # ============================================================================
 
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -129,11 +130,13 @@ if __name__ == '__main__':
 
     img = imagem()
     nomes = img.bandNames().getInfo()
-    with ThreadPoolExecutor(base.N_THREADS) as ex:
+    # ⚠️ No modo restrito do EE (cota mensal esgotada) a concorrência cai muito;
+    # rodar com N_THREADS=3 nesse caso
+    with ThreadPoolExecutor(int(os.environ.get('N_THREADS', base.N_THREADS))) as ex:
         futuros = [ex.submit(baixar_bloco, img, bi, bj) for bi, bj in blocos]
         for k, f in enumerate(as_completed(futuros), 1):
             f.result()
-            if k % 25 == 0 or k == len(blocos):
+            if k % 10 == 0 or k == len(blocos):
                 print(f'   {k}/{len(blocos)} blocos ({time.time() - t0:.0f}s)')
 
     # Monta a grade completa (blocos fora do Brasil ficam com zero)

@@ -137,12 +137,61 @@ Contraponto com o BR-DWGD (`scripts/comparar_lst_brdwgd.py`; amostra robusta,
   vegetação altere a frequência de céu limpo na escala município-ano.
 - Conclusão: o viés de amostragem é pequeno na média anual municipal. Proposta:
   `aqua_lst_dia_dessaz_c` como Y principal (imune por construção) e bruta, Zhang
-  e estação seca como robustez. **Aguardando confirmação do Léo.**
+  e estação seca como robustez. **Confirmado pelo Léo.**
 
 Validações futuras (opcionais): marcar municípios com estação do INMET dentro
 do território e repetir o modelo nesse subconjunto; comparar decaimento espacial
 entre MODIS e BR-DWGD; média sazonal balanceada (média das médias mensais) para
 reduzir o viés de céu limpo.
+
+## 4b. Decisões para os modelos (confirmadas pelo Léo em 05/10/2026)
+
+1. Y principal `aqua_lst_dia_dessaz_c`, 2003–2025; robustez: bruta, Zhang, estação
+   seca, BR-DWGD (Tmáx, amostra robusta).
+2. Amostra: todos os municípios com MODIS (sai Fernando de Noronha); amostra robusta
+   só quando Y = BR-DWGD.
+3. **Sem ponderação** no principal; peso por área na robustez.
+4. Vegetação: % nativa total; florestal × não florestal como heterogeneidade.
+5. Perda e ganho separados (parte negativa/positiva da variação anual de % nativa).
+   Defasagens em **faixas (0–2, 3–5, 6–10)** e também **ano a ano** (pedido do Léo).
+6. **Janela de 10 anos** (o Léo pediu janela menor que os 15 propostos) + termo
+   acumulado de 11+ anos.
+7. Método principal: defasagens distribuídas; projeções locais na robustez. O Léo
+   não entendeu o item do estudo de evento (explicado em 05/10; aguardando).
+8. Vizinhança: anéis de 0–25, 25–50 e 50–100 km a partir da BORDA, via grade de 5 km
+   do MapBiomas Col. 11 (autorizado). Índice de acesso com decaimento exponencial
+   estimado por busca em grade.
+9. Conley 200 km (sensibilidade 100 e 500 km); UF × ano no principal, bioma × ano
+   na robustez; Python. O pyfixest não tem Conley: implementado em
+   `scripts/modelo_defasagens.py` (espacial por ano, Bartlett + serial no município).
+
+Provocação do Léo (05/10): Y = temperatura local − média global das terras.
+Resposta: com efeito fixo de ano (ou UF × ano), subtrair uma série global comum
+é absorvido inteiro pelo efeito fixo; os coeficientes não mudam. A versão útil é
+permitir sensibilidade própria de cada município ao aquecimento global
+(município × temperatura global) como robustez, com cuidado porque pode absorver
+parte do efeito gradual da vegetação.
+
+## 4c. Primeiros resultados (scripts/modelo_defasagens.py, figura_curvas_resposta.py)
+
+- Brasil, faixas: perda +0,064 °C/pp (0–2 anos), +0,021 (3–5), +0,029 (6–10),
+  +0,027 (11+); ganho −0,078, −0,095, −0,054, −0,055. Robusto a bruta/Zhang/seca.
+- **Teste de placebo (antecipações t−3 a t−1) FALHA no Brasil**: perda futura
+  associada a LST menor hoje (−0,08, t = −4,4), ganho futuro a LST maior; ganho no
+  ano 0 = −0,24. Concentrado em Caatinga e Cerrado: a classificação anual da
+  vegetação aberta parece acompanhar o clima do ano. O recorte "só florestal" não
+  resolve, porque a classe 4 (savânica) é florestal no MapBiomas.
+- **Amazônia passa no placebo**: perda +0,05 (ano 0), +0,07 (ano 1), ~+0,04 no longo
+  prazo; ganho esfria gradualmente até −0,08 °C/pp em 10+ anos.
+- BR-DWGD (Tmáx do ar): efeitos ~10× menores (≈ +0,005 °C/pp), como esperado para
+  dado interpolado de estações.
+- Próximos passos: suavizar a vegetação (média móvel de 3 anos ou variações de
+  mais longo prazo) para tirar o ruído de classificação; rodar o modelo B com os
+  anéis quando a grade terminar; estimar o decaimento.
+
+**Earth Engine em modo restrito até 01/11/2026**: a cota Community (150 EECU-h/mês)
+acabou na grade de 30 m do MapBiomas. Ainda roda, devagar (`N_THREADS=3`). O tier
+Contributor (1.000 EECU-h, exige conta de faturamento, sem cobrança) resolveria.
 
 ## 5. Estado da base (arquivos em `dados/`)
 
@@ -185,6 +234,11 @@ Não incluídos (grandes, baixar se precisar):
 - `juntar_lst_painel.py`: junta a LST (e as correções) ao painel e roda as conferências.
 - `gee_lst_correcoes_municipios.py`: correções do viés de céu limpo (seção 4).
 - `comparar_lst_brdwgd.py`: contraponto descritivo LST × BR-DWGD.
+- `bioma_municipios.py`: bioma predominante (IBGE 1:250 mil).
+- `gee_grade_vegetacao.py`: grade de 5 km de nativa/florestal por ano (EE, em blocos).
+- `vizinhanca_municipios.py`: anéis a partir da borda e faixas de 5 km (0–200 km).
+- `modelo_defasagens.py`: modelos de defasagens distribuídas com Conley.
+- `figura_curvas_resposta.py`: figura das curvas com placebo (Brasil × Amazônia).
 - `gee_altitude_clima_municipios.js`: rascunho antigo para o GEE (altitude e
   TerraClimate); não usado, pode servir de referência.
 
