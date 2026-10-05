@@ -113,6 +113,32 @@ Achados das conferências (importantes para o modelo):
 4. Viés de céu limpo: o `n_obs_dia` médio vai de 32–35 (Norte) a 43 (Sul);
    usar como controle ou filtro de cobertura.
 
+Correções do viés de céu limpo (`scripts/gee_lst_correcoes_municipios.py`, ~9 min):
+- `aqua_lst_dia_anom_c` / `aqua_lst_dia_dessaz_c`: média anual de anomalias em
+  relação à climatologia de cada pixel × semana do ano (2003–2025); dessaz = nível
+  médio do pixel + anomalia.
+- `aqua_lst_dia_seca_c`, `aqua_n_obs_seca`: só os 3 meses mais secos de cada pixel
+  (climatologia CHIRPS 2003–2025, janela fixa), como em Butt et al. (2023).
+  `mes_inicio_seca` (fixa, moda no município; 1 = jan).
+- `zhang_lst_dia_c`, `zhang_lst_dia_seca_c`: base preenchida de Zhang et al.
+  (2022), 2003–2020 (`projects/sat-io/open-datasets/gap-filled-lst/gf_day_1km`).
+
+Contraponto com o BR-DWGD (`scripts/comparar_lst_brdwgd.py`; amostra robusta,
+2003–2020, variação após efeitos fixos de município e UF × ano; tabela em
+`resultados/contraponto_lst_brdwgd.csv`):
+- Correlação com a Tmáx do ar: bruta 0,41, dessaz 0,41, Zhang 0,43; rigorosa e
+  estação seca ~0,27 (menos observações, mais ruído).
+- Assinatura do viés (correlação com n_obs descontada a Tmáx): perto de zero em
+  todas (−0,08 a +0,06). Onde aparece (NE, −0,21), aparece igual na base de Zhang,
+  que não tem falhas: é efeito físico (chuva/umidade do solo), não amostragem.
+- Tendência nacional 2003–2020: +0,44 °C/década na bruta, dessaz, Zhang e na Tmáx
+  do ar (estação seca ~+0,35).
+- % nativa × n_obs dentro do município: ~0,02 (máx. |0,08|). Sem sinal de que a
+  vegetação altere a frequência de céu limpo na escala município-ano.
+- Conclusão: o viés de amostragem é pequeno na média anual municipal. Proposta:
+  `aqua_lst_dia_dessaz_c` como Y principal (imune por construção) e bruta, Zhang
+  e estação seca como robustez. **Aguardando confirmação do Léo.**
+
 Validações futuras (opcionais): marcar municípios com estação do INMET dentro
 do território e repetir o modelo nesse subconjunto; comparar decaimento espacial
 entre MODIS e BR-DWGD; média sazonal balanceada (média das médias mensais) para
@@ -121,7 +147,7 @@ reduzir o viés de céu limpo.
 ## 5. Estado da base (arquivos em `dados/`)
 
 `painel_municipios_1985_2025.csv`: 5.571 municípios × 41 anos (228.411 linhas),
-63 colunas (39 originais + 24 de MODIS LST, 2001–2025). Chave: `geocodigo` (IBGE, 7 dígitos) + `ano`.
+70 colunas (39 originais + 31 de MODIS LST e correções, 2001–2025). Chave: `geocodigo` (IBGE, 7 dígitos) + `ano`.
 
 | Grupo | Colunas | Fonte e observações |
 |---|---|---|
@@ -156,7 +182,9 @@ Não incluídos (grandes, baixar se precisar):
 - `juntar_clima_painel.py`: junta o clima do BR-DWGD, imputação e degraus.
 - `clima_anual_municipios_colab.ipynb`: extração do BR-DWGD (rodado pelo Léo no Colab).
 - `gee_lst_modis_municipios.py`: extração do MODIS LST no Earth Engine (seção 4).
-- `juntar_lst_painel.py`: junta a LST ao painel e roda as conferências.
+- `juntar_lst_painel.py`: junta a LST (e as correções) ao painel e roda as conferências.
+- `gee_lst_correcoes_municipios.py`: correções do viés de céu limpo (seção 4).
+- `comparar_lst_brdwgd.py`: contraponto descritivo LST × BR-DWGD.
 - `gee_altitude_clima_municipios.js`: rascunho antigo para o GEE (altitude e
   TerraClimate); não usado, pode servir de referência.
 
