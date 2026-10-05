@@ -13,9 +13,16 @@ import pandas as pd
 painel = pd.read_csv('dados/painel_municipios_1985_2025.csv')
 lst = pd.read_csv('dados/lst_modis_municipios_2001_2025.csv')
 
+# Versões corrigidas do viés de céu limpo (gee_lst_correcoes_municipios.py):
+# anomalias por semana do ano, estação seca de cada pixel e a base preenchida de
+# Zhang et al. (2022). O mês de início da estação seca é fixo por município.
+correcoes = pd.read_csv('dados/lst_correcoes_municipios_2003_2025.csv')
+mes_seca = pd.read_csv('dados/mes_inicio_seca_municipios.csv')
+lst = lst.merge(correcoes, on=['geocodigo', 'ano'], how='left')
+
 # Se o painel já tiver colunas de LST (execução anterior), removo antes de juntar
 cols_lst = [c for c in lst.columns if c not in ('geocodigo', 'ano')]
-painel = painel.drop(columns=[c for c in cols_lst if c in painel.columns])
+painel = painel.drop(columns=[c for c in cols_lst + ['mes_inicio_seca'] if c in painel.columns])
 
 
 # ============================================================================
@@ -37,6 +44,8 @@ assert not lst.duplicated(['geocodigo', 'ano']).any(), 'chave duplicada na LST'
 # Junção à esquerda: anos 1985-2000 ficam sem LST (o MODIS começa em 2000) e
 # o Aqua só tem ano completo a partir de 2003.
 painel = painel.merge(lst, on=['geocodigo', 'ano'], how='left')
+# Variável fixa: vale para todos os anos do município
+painel = painel.merge(mes_seca, on='geocodigo', how='left')
 painel.to_csv('dados/painel_municipios_1985_2025.csv', index=False, encoding='utf-8-sig')  # BOM: acentos certos no Excel
 print(f'💾 Painel: {painel.shape[0]} linhas × {painel.shape[1]} colunas')
 
